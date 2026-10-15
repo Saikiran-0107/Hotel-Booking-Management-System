@@ -1,0 +1,269 @@
+
+-- HOTEL BOOKING MANAGEMENT SYSTEM
+-- Complete MySQL Mini Project
+
+CREATE DATABASE IF NOT EXISTS hotel_booking_db;
+USE hotel_booking_db;
+
+-- Drop tables in foreign-key dependency order
+DROP TABLE IF EXISTS Payments;
+DROP TABLE IF EXISTS Bookings;
+DROP TABLE IF EXISTS Rooms;
+DROP TABLE IF EXISTS Guests;
+DROP TABLE IF EXISTS Hotels;
+
+-- 1. Create Hotels table
+CREATE TABLE Hotels (
+    hotel_id INT PRIMARY KEY AUTO_INCREMENT,
+    hotel_name VARCHAR(50),
+    city VARCHAR(30),
+    star_rating INT
+);
+
+-- 2. Create Rooms table
+CREATE TABLE Rooms (
+    room_id INT PRIMARY KEY AUTO_INCREMENT,
+    hotel_id INT,
+    room_number VARCHAR(10),
+    room_type VARCHAR(20),
+    price DECIMAL(10,2),
+    status VARCHAR(20),
+    FOREIGN KEY (hotel_id) REFERENCES Hotels(hotel_id)
+);
+
+-- 3. Create Guests table
+CREATE TABLE Guests (
+    guest_id INT PRIMARY KEY AUTO_INCREMENT,
+    guest_name VARCHAR(50),
+    phone VARCHAR(15),
+    city VARCHAR(30)
+);
+
+-- 4. Create Bookings table
+CREATE TABLE Bookings (
+    booking_id INT PRIMARY KEY AUTO_INCREMENT,
+    guest_id INT,
+    room_id INT,
+    check_in DATE,
+    check_out DATE,
+    booking_status VARCHAR(20),
+    FOREIGN KEY (guest_id) REFERENCES Guests(guest_id),
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id)
+);
+
+-- 5. Create Payments table
+CREATE TABLE Payments (
+    payment_id INT PRIMARY KEY AUTO_INCREMENT,
+    booking_id INT,
+    amount DECIMAL(10,2),
+    payment_status VARCHAR(20),
+    FOREIGN KEY (booking_id) REFERENCES Bookings(booking_id)
+);
+
+-- Insert hotel records
+INSERT INTO Hotels (hotel_name, city, star_rating) VALUES
+('Sunrise Residency', 'Chennai', 5),
+('Lakeview Suites', 'Bangalore', 4),
+('City Comfort Hotel', 'Hyderabad', 3);
+
+-- Insert room records
+INSERT INTO Rooms
+(hotel_id, room_number, room_type, price, status) VALUES
+(1, '101', 'Standard', 2500, 'Available'),
+(1, '102', 'Deluxe', 4000, 'Occupied'),
+(1, '103', 'Suite', 7000, 'Occupied'),
+(2, '201', 'Standard', 2200, 'Available'),
+(2, '202', 'Deluxe', 3800, 'Occupied'),
+(3, '301', 'Standard', 1800, 'Available'),
+(3, '302', 'Suite', 6000, 'Occupied');
+
+-- Insert guest records
+INSERT INTO Guests (guest_name, phone, city) VALUES
+('Akhil', '9000011111', 'Chennai'),
+('Nisha', '9000011112', 'Bangalore'),
+('Vikram', '9000011113', 'Hyderabad'),
+('Meera', '9000011114', 'Coimbatore'),
+('Rohan', '9000011115', 'Mumbai');
+
+-- Insert booking records
+INSERT INTO Bookings
+(guest_id, room_id, check_in, check_out, booking_status) VALUES
+(1, 2, '2026-07-25', '2026-07-30', 'Completed'),
+(2, 3, '2026-07-28', '2026-08-02', 'Active'),
+(3, 5, '2026-07-29', '2026-08-01', 'Active'),
+(4, 7, '2026-07-20', '2026-07-22', 'Completed'),
+(1, 1, '2026-08-05', '2026-08-08', 'Booked'),
+(5, 4, '2026-07-31', '2026-08-03', 'Cancelled');
+
+-- Insert payment records
+INSERT INTO Payments (booking_id, amount, payment_status) VALUES
+(1, 20000, 'Paid'),
+(2, 35000, 'Paid'),
+(3, 12000, 'Pending'),
+(4, 15000, 'Paid'),
+(5, 7500, 'Pending'),
+(6, 0, 'Refunded');
+
+-- Verify all tables
+SELECT * FROM Hotels;
+SELECT * FROM Rooms;
+SELECT * FROM Guests;
+SELECT * FROM Bookings;
+SELECT * FROM Payments;
+
+-- QUERY 1: Display available rooms
+SELECT room_data.room_number,
+       room_data.room_type,
+       room_data.price,
+       hotel_data.hotel_name
+FROM Rooms room_data
+JOIN Hotels hotel_data
+ON room_data.hotel_id = hotel_data.hotel_id
+WHERE room_data.status = 'Available';
+
+-- QUERY 2: Find guests staying today
+SELECT guest_data.guest_name,
+       hotel_data.hotel_name,
+       room_data.room_number,
+       booking_data.check_in,
+       booking_data.check_out
+FROM Guests guest_data
+JOIN Bookings booking_data
+ON guest_data.guest_id = booking_data.guest_id
+JOIN Rooms room_data
+ON booking_data.room_id = room_data.room_id
+JOIN Hotels hotel_data
+ON room_data.hotel_id = hotel_data.hotel_id
+WHERE CURDATE() BETWEEN booking_data.check_in
+                    AND booking_data.check_out
+AND booking_data.booking_status = 'Active';
+
+-- QUERY 3: Calculate total paid revenue
+SELECT SUM(amount) AS Total_Revenue
+FROM Payments
+WHERE payment_status = 'Paid';
+
+-- QUERY 4: Bookings with check-in between two dates
+SELECT booking_data.booking_id,
+       guest_data.guest_name,
+       hotel_data.hotel_name,
+       booking_data.check_in,
+       booking_data.check_out
+FROM Bookings booking_data
+JOIN Guests guest_data
+ON booking_data.guest_id = guest_data.guest_id
+JOIN Rooms room_data
+ON booking_data.room_id = room_data.room_id
+JOIN Hotels hotel_data
+ON room_data.hotel_id = hotel_data.hotel_id
+WHERE booking_data.check_in
+BETWEEN '2026-07-25' AND '2026-07-31';
+
+-- QUERY 5: Most booked room type
+SELECT room_data.room_type,
+       COUNT(*) AS Total_Bookings
+FROM Rooms room_data
+JOIN Bookings booking_data
+ON room_data.room_id = booking_data.room_id
+GROUP BY room_data.room_type
+ORDER BY Total_Bookings DESC
+LIMIT 1;
+
+-- QUERY 6: Calculate occupancy rate
+SELECT ROUND(
+    COUNT(CASE WHEN status = 'Occupied' THEN 1 END)
+    * 100.0 / COUNT(*), 2
+) AS Occupancy_Rate
+FROM Rooms;
+
+-- QUERY 7: Display cancelled bookings
+SELECT booking_data.booking_id,
+       guest_data.guest_name,
+       hotel_data.hotel_name,
+       room_data.room_number
+FROM Bookings booking_data
+JOIN Guests guest_data
+ON booking_data.guest_id = guest_data.guest_id
+JOIN Rooms room_data
+ON booking_data.room_id = room_data.room_id
+JOIN Hotels hotel_data
+ON room_data.hotel_id = hotel_data.hotel_id
+WHERE booking_data.booking_status = 'Cancelled';
+
+-- QUERY 8: Guests with multiple bookings
+SELECT guest_data.guest_name,
+       COUNT(booking_data.booking_id) AS Total_Bookings
+FROM Guests guest_data
+JOIN Bookings booking_data
+ON guest_data.guest_id = booking_data.guest_id
+GROUP BY guest_data.guest_id, guest_data.guest_name
+HAVING COUNT(booking_data.booking_id) > 1;
+
+-- QUERY 9: Average room price
+SELECT AVG(price) AS Average_Room_Price
+FROM Rooms;
+
+-- QUERY 10: Hotels with more than 100 rooms
+SELECT hotel_data.hotel_name,
+       COUNT(room_data.room_id) AS Total_Rooms
+FROM Hotels hotel_data
+JOIN Rooms room_data
+ON hotel_data.hotel_id = room_data.hotel_id
+GROUP BY hotel_data.hotel_id, hotel_data.hotel_name
+HAVING COUNT(room_data.room_id) > 100;
+
+-- QUERY 11: Highest-paying guest by total payments
+SELECT guest_data.guest_name,
+       SUM(payment_data.amount) AS Total_Spent
+FROM Guests guest_data
+JOIN Bookings booking_data
+ON guest_data.guest_id = booking_data.guest_id
+JOIN Payments payment_data
+ON booking_data.booking_id = payment_data.booking_id
+GROUP BY guest_data.guest_id, guest_data.guest_name
+ORDER BY Total_Spent DESC
+LIMIT 1;
+
+-- QUERY 12: Hotel-wise paid revenue
+SELECT hotel_data.hotel_name,
+       SUM(payment_data.amount) AS Revenue
+FROM Hotels hotel_data
+JOIN Rooms room_data
+ON hotel_data.hotel_id = room_data.hotel_id
+JOIN Bookings booking_data
+ON room_data.room_id = booking_data.room_id
+JOIN Payments payment_data
+ON booking_data.booking_id = payment_data.booking_id
+WHERE payment_data.payment_status = 'Paid'
+GROUP BY hotel_data.hotel_id, hotel_data.hotel_name;
+
+-- QUERY 13: Most expensive room
+SELECT room_number, room_type, price
+FROM Rooms
+ORDER BY price DESC
+LIMIT 1;
+
+-- QUERY 14: Guests who never made a booking
+SELECT guest_data.guest_name
+FROM Guests guest_data
+LEFT JOIN Bookings booking_data
+ON guest_data.guest_id = booking_data.guest_id
+WHERE booking_data.booking_id IS NULL;
+
+-- QUERY 15: Rank hotels by paid revenue
+-- Requires MySQL 8.0 or newer
+SELECT hotel_data.hotel_name,
+       SUM(payment_data.amount) AS Revenue,
+       RANK() OVER (
+           ORDER BY SUM(payment_data.amount) DESC
+       ) AS Revenue_Rank
+FROM Hotels hotel_data
+JOIN Rooms room_data
+ON hotel_data.hotel_id = room_data.hotel_id
+JOIN Bookings booking_data
+ON room_data.room_id = booking_data.room_id
+JOIN Payments payment_data
+ON booking_data.booking_id = payment_data.booking_id
+WHERE payment_data.payment_status = 'Paid'
+GROUP BY hotel_data.hotel_id, hotel_data.hotel_name;
+
